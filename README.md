@@ -58,4 +58,4 @@
 *   **Compliance Ready**: Meta 앱 검수 통과를 위한 데이터 삭제 콜백(Data Deletion Callback) 및 개인정보처리방침 페이지 내장.
 
 ## 6. Github 링크
-*   [Repository URL Placeholder]
+*   [Repository URL Placeholder](https://github.com/jungho1123/hodumaru)
