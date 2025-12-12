@@ -1,0 +1,74 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Compliance-First AI SNS Agent Backend
+  
+  Resources: S3 Bucket, Image Processor Lambda, Data Deletion Lambda
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+    Runtime: python3.9
+
+Resources:
+  # -------------------------------------------------------------------------
+  # S3 Bucket for Temporary Images (Privacy Compliance: 48h Retention)
+  # -------------------------------------------------------------------------
+  PrivateImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: AutoDeleteTempImages
+            Status: Enabled
+            ExpirationInDays: 2
+
+  # -------------------------------------------------------------------------
+  # Lambda: Image Processor (Uploads to S3 -> Returns Presigned URL)
+  # -------------------------------------------------------------------------
+  ImageProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: image_processor.lambda_handler
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref PrivateImageBucket
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref PrivateImageBucket
+
+  # -------------------------------------------------------------------------
+  # Lambda: Data Deletion Callback (Meta Compliance)
+  # -------------------------------------------------------------------------
+  DataDeletionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: data_deletion.lambda_handler
+      Events:
+        DeletionCallback:
+          Type: Api
+          Properties:
+            Path: /deletion-callback
+            Method: post
+        VerificationCallback:
+          Type: Api
+          Properties:
+            Path: /deletion-callback
+            Method: get
+
+Outputs:
+  BucketName:
+    Description: "S3 Bucket Name"
+    Value: !Ref PrivateImageBucket
+  DataDeletionApi:
+    Description: "API Gateway endpoint URL for Data Deletion Callback"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/deletion-callback/"

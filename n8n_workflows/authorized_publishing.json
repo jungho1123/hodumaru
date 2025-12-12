@@ -1,0 +1,120 @@
+{
+    "name": "Pipeline 2: Authorized Publishing",
+    "nodes": [
+        {
+            "parameters": {
+                "triggerTimes": {
+                    "item": [
+                        {
+                            "mode": "everyMinute"
+                        }
+                    ]
+                }
+            },
+            "name": "Cron",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM drafts WHERE status = 'APPROVED';"
+            },
+            "name": "Check Approved Drafts",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$json[\"id\"]}}",
+                            "operation": "notEqual"
+                        }
+                    ]
+                }
+            },
+            "name": "If Approved Exists",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "requestMethod": "POST",
+                "url": "https://graph.facebook.com/v18.0/{{$json[\"ig_user_id\"]}}/media",
+                "options": {}
+            },
+            "name": "Create IG Container",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "requestMethod": "POST",
+                "url": "https://graph.facebook.com/v18.0/{{$json[\"ig_user_id\"]}}/media_publish",
+                "options": {}
+            },
+            "name": "Publish Container",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE drafts SET status = 'PUBLISHED' WHERE id = {{$node[\"Check Approved Drafts\"].json[\"id\"]}}"
+            },
+            "name": "Update DB",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Cron": {
+            "main": [
+                [
+                    {
+                        "node": "Check Approved Drafts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Approved Drafts": {
+            "main": [
+                [
+                    {
+                        "node": "If Approved Exists",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

@@ -1,0 +1,117 @@
+{
+    "name": "Pipeline 1: Secure Drafting",
+    "nodes": [
+        {
+            "parameters": {},
+            "name": "Start",
+            "type": "n8n-nodes-base.start",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "pollTimes": {
+                    "item": [
+                        {
+                            "mode": "everyMinute"
+                        }
+                    ]
+                },
+                "simple": false
+            },
+            "name": "Google Photos Trigger",
+            "type": "n8n-nodes-base.googlePhotosTrigger",
+            "typeVersion": 1,
+            "position": [
+                450,
+                300
+            ],
+            "credentials": {
+                "googlePhotosOAuth2Api": {
+                    "id": "YOUR_CREDENTIAL_ID",
+                    "name": "Google Photos Account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "functionCode": "// Custom Python/HTTP call to Lambda would go here via HTTP Request Node\n// For now simulated structure"
+            },
+            "name": "S3 Upload & Presign",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ],
+            "notes": "Calls Lambda /image_processor"
+        },
+        {
+            "parameters": {
+                "resource": "chat",
+                "model": "gpt-4-vision-preview",
+                "prompt": "Analyze this image for Instagram. Provide a caption and hashtags. Ensure safety."
+            },
+            "name": "OpenAI Vision",
+            "type": "n8n-nodes-base.openAi",
+            "typeVersion": 1,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "category": "sexual/minors",
+                "input": "={{$node[\"OpenAI Vision\"].json[\"content\"]}}"
+            },
+            "name": "OpenAI Moderation",
+            "type": "n8n-nodes-base.openAi",
+            "typeVersion": 1,
+            "position": [
+                1050,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "INSERT INTO drafts (image_url, caption, status) VALUES ($1, $2, 'PENDING');"
+            },
+            "name": "Save to DB",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Start": {
+            "main": [
+                [
+                    {
+                        "node": "Google Photos Trigger",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Photos Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "S3 Upload & Presign",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
